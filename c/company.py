@@ -1,111 +1,155 @@
-import tkinter as tk
+from tkinter import *
 from tkinter import messagebox
 from tkinter import ttk
+
 import sqlite3
 
-# Соединение с базой данных
-conn = sqlite3.connect('company.db')
-cursor = conn.cursor()
+# Устанавливаем соединение с базой данных
+connection = sqlite3.connect('company.db')
+cursor = connection.cursor()
 
-# Создание таблицы сотрудников
-cursor.execute('''CREATE TABLE IF NOT EXISTS company
-                (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                 name TEXT,
-                 phone TEXT,
-                 email TEXT,
-                 salary REAL)''')
-
+# Создаем таблицу Company
+cursor.execute('''
+CREATE TABLE IF NOT EXISTS Company (
+id INTEGER PRIMARY KEY,
+name TEXT NOT NULL,
+phone TEXT NOT NULL,
+email TEXT NOT NULL,
+salary REAL
+)
+''')
 # Функция для добавления сотрудника
-def add_employee():
-    name = name_entry.get()
-    phone = phone_entry.get()
-    email = email_entry.get()
-    salary = salary_entry.get()
+def insert_varible_into_table(id, name, phone, email, salary):
+    try:
+        sqlite_connection = sqlite3.connect('company.db')
+        cursor = sqlite_connection.cursor()
+        
+        sqlite_insert_with_param = """INSERT INTO company
+                              (id, name, phone, email, salary)
+                              VALUES (?, ?, ?, ?, ?);"""
 
-    if name and phone and email and salary:
-        cursor.execute('''INSERT INTO company (name, phone, email, salary)
-                        VALUES (?, ?, ?, ?)''', (name, phone, email, salary))
-        conn.commit()
-        messagebox.showinfo('Success', 'Сотрудник добавлен успешно.')
-        clear_entries()
-        load_employees()
-    else:
-        messagebox.showerror('Error', 'Пожалуйста, заполните все поля.')
+        data_tuple = (id, name, phone, email, salary)
+        cursor.execute(sqlite_insert_with_param, data_tuple)
+        sqlite_connection.commit()
+       
+        cursor.close()
 
-# Функция для изменения сотрудникаf
-def update_employee():
-    selected_item = treeview.selection()
-    if selected_item:
-        employee_id = treeview.item(selected_item)['values'][0]
-        name = name_entry.get()
-        phone = phone_entry.get()
-        email = email_entry.get()
-        salary = salary_entry.get()
+    except sqlite3.Error as error:
+        print("Ошибка при работе с SQLite", error)
+    finally:
+        if sqlite_connection:
+            sqlite_connection.close()
+           # print("Соединение с SQLite закрыто")
 
-        if name and phone and email and salary:
-            cursor.execute('''UPDATE company SET name=?, phone=?, email=?, salary=?
-                            WHERE id=?''', (name, phone, email, salary, employee_id))
-            cursor.commit()
-            messagebox.showinfo('Success', 'Сотрудник обновлен успешно.')
-            clear_entries()
-            load_employees()
-        else:
-            messagebox.showerror('Error', 'Пожалуйста, заполните все поля.')
-    else:
-        messagebox.showerror('Error', 'Пожалуйста, выберите сотрудника для изменения.')
+# Добавляем нового пользователя
+insert_varible_into_table(1, 'Ivanov', '+79084406442', 'cd@infosco.com', 10000)
+insert_varible_into_table(2, 'Petrov', '+79046296556', 'info@infosco.com', 20000)
+insert_varible_into_table(3, 'Sidorov', '+79025564112', 'mama@infosco.com', 25000)
+insert_varible_into_table(4, 'Chirkov', '+79026522145', 'vova@infosco.com', 15000)
 
-# Функция для удаления сотрудника
-def delete_employee():
-    selected_item = treeview.selection()
-    if selected_item:
-        result = messagebox.askyesno('Confirmation', 'Вы уверены, что хотите удалить выбранного сотрудника?')
-        if result:
-            employee_id = treeview.item(selected_item)['values'][0]
-            cursor.execute('DELETE FROM company WHERE id=?', (employee_id,))
-            cursor.commit()
-            messagebox.showinfo('Success', 'Сотрудник удален успешно.')
-            clear_entries()
-            load_employees()
-    else:
-        messagebox.showerror('Error', 'Пожалуйста, выберите сотрудника для удаления.')
 
-# Функция для поиска сотрудника
-def search_employee():
-    keyword = search_entry.get()
-    if keyword:
-        cursor.execute("SELECT * FROM company WHERE name LIKE ?", ('%' + keyword + '%',))
-        rows = cursor.fetchall()
-        if rows:
-            clear_treeview()
-            for row in rows:
-                treeview.insert('', 'end', values=row)
-        else:
-            messagebox.showinfo('No Results', 'Сотрудники с таким именем не найдены.')
-    else:
-        messagebox.showerror('Error', 'Пожалуйста, введите ключевое слово для поиска.')
+# отображаем в TREEVIEW
+root = Tk()
+root.title("Traktorister.project")
+root.geometry("350x350") 
+ 
+# определяем данные для отображения
+label = ttk.Label()
+label.pack(anchor=N, fill=X)
 
-# Функция для очистки полей
-def clear_entries():
-    name_entry.delete(0, 'end')
-    phone_entry.delete(0, 'end')
-    email_entry.delete(0, 'end')
-    salary_entry.delete(0, 'end')
+# определяем столбцы
+columns = ("id", "name", "phone", "email", "salary")
+tree = ttk.Treeview(columns=columns, show="headings")
+tree.pack(expand=1, fill=BOTH)
+ 
+# определяем заголовки
+tree.heading("id", text="ID", anchor=W)
+tree.heading("name", text="Имя", anchor=W)
+tree.heading("phone", text="Телефoн", anchor=W)
+tree.heading("email", text="Email", anchor=W)
+tree.heading("salary", text="Зарплата", anchor=W)
+ 
+tree.column("#1", stretch=NO, width=20)
+tree.column("#2", stretch=NO, width=80)
+tree.column("#3", stretch=NO, width=80)
+tree.column("#4", stretch=NO, width=70)
+tree.column("#5", stretch=NO, width=50)
+ 
+# добавляем данные для отображения
+cursor.execute('SELECT * FROM company')
+people = cursor.fetchall()
 
-# Функция для загрузки сотрудников в Treeview
-    cursor.row_factory = sqlite3.Row
-    cursor = conn.execute('SELECT * FROM employees')
-    for row in cursor:
-        treeview.insert('', 'end', values=row)
+for person in people:
+    tree.insert("", END, values=person)
+ 
+# определяем выделенную строку
+def item_selected(event):
+    selected_people = ""
+    for selected_item in tree.selection():
+        item = tree.item(selected_item)
+        person = item["values"]
+        selected_people = f"{selected_people}{person}\n"
+    label["text"]=selected_people
+ 
+tree.bind("<<TreeviewSelect>>", item_selected)
+ 
+root.mainloop()
 
-# Функция для очистки Treeview
-def clear_treeview():
-    records = treeview.get_children()
-    for record in records:
-        treeview.delete(record)
+# удаление записи с заданным id
+def delete_record():
+    try:
+        sqlite_connection = sqlite3.connect('company.db')
+        cursor = sqlite_connection.cursor()
+        print("Подключен к SQLite")
 
-# Создание графического интерфейса
-root = tk.Tk()
-root.title('Список сотрудников компании')
+        sql_delete_query = """DELETE from company where id = 2"""
+        cursor.execute(sql_delete_query)
+        sqlite_connection.commit()
+        print("Запись успешно удалена")
+        cursor.close()
 
-conn.commit()
-conn.close()
+    except sqlite3.Error as error:
+        print("Ошибка при работе с SQLite", error)
+    finally:
+        if sqlite_connection:
+            sqlite_connection.close()
+            print("Соединение с SQLite закрыто")
+
+delete_record()
+
+# обновление записи с заданным id
+import sqlite3
+
+def update_sqlite_table():
+    try:
+        sqlite_connection = sqlite3.connect('company.db')
+        cursor = sqlite_connection.cursor()
+        print("Подключен к SQLite")
+
+        sql_update_query = """Update company set salary = 50000 where id = 4"""
+        cursor.execute(sql_update_query)
+        sqlite_connection.commit()
+        print("Запись успешно обновлена")
+        cursor.close()
+
+    except sqlite3.Error as error:
+        print("Ошибка при работе с SQLite", error)
+    finally:
+        if sqlite_connection:
+            sqlite_connection.close()
+            print("Соединение с SQLite закрыто")
+
+update_sqlite_table()
+
+
+# Выбираем всех пользователей
+cursor.execute('SELECT * FROM company')
+users = cursor.fetchall()
+
+# Выводим итоговую БД в консоль
+for user in users:
+  print(user)
+  
+# Сохраняем изменения и закрываем соединение
+connection.commit()
+connection.close()
